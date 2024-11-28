@@ -1,0 +1,52 @@
+name: Docker CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        # Ожидание запуска PostgreSQL
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout кода
+        uses: actions/checkout@v3
+
+      - name: Установка Docker Compose
+        uses: ndeloof/install-compose-action@v0.0.1
+
+      - name: Настройка Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Сборка Docker-контейнера
+        run: docker-compose -f docker-compose.yml up -d --build
+
+      - name: Проверка работы контейнера
+        run: |
+          docker-compose ps
+
+      - name: Тестирование приложения
+        run: |
+          docker-compose exec -T web python manage.py test
